@@ -10,6 +10,19 @@ fi
 # 保存 device ID 的文件路径
 DEVICE_ID_FILE="/root/.pingpong_device_id"
 
+# 获取和保存设备ID
+function get_device_id() {
+    while :; do
+        read -p "请输入你的key device id: " your_device_id
+        if [ -n "$your_device_id" ]; then
+            echo "$your_device_id" > "$DEVICE_ID_FILE"
+            break
+        else
+            echo "设备ID不能为空，请重新输入。"
+        fi
+    done
+}
+
 # 节点安装功能
 function install_node() {
 
@@ -43,10 +56,9 @@ function install_node() {
         echo "Docker 已安装。"
     fi
 
-    #获取运行文件
+    # 获取运行文件
     if [ ! -f "$DEVICE_ID_FILE" ]; then
-        read -p "请输入你的key device id: " your_device_id
-        echo "$your_device_id" > "$DEVICE_ID_FILE"
+        get_device_id
     fi
 
     keyid=$(cat "$DEVICE_ID_FILE")
@@ -69,8 +81,23 @@ function check_service_status() {
 }
 
 function reboot_pingpong() {
+    if [ ! -f "$DEVICE_ID_FILE" ]; then
+        get_device_id
+    fi
+
+    keyid=$(cat "$DEVICE_ID_FILE")
+    screen -S pingpong -X quit
+    screen -dmS pingpong bash -c "./PINGPONG --key \"$keyid\""
+}
+
+function change_device_id() {
+    if screen -list | grep -q "pingpong"; then
+        screen -S pingpong -X quit
+    fi
+    get_device_id
     keyid=$(cat "$DEVICE_ID_FILE")
     screen -dmS pingpong bash -c "./PINGPONG --key \"$keyid\""
+    echo "设备ID已更改并且服务已重启。"
 }
 
 # 主菜单
@@ -80,12 +107,14 @@ function main_menu() {
     echo "1. 安装节点"
     echo "2. 查看节点日志"
     echo "3. 重启pingpong"
-    read -p "请输入选项（1-3）: " OPTION
+    echo "4. 更改设备ID"
+    read -p "请输入选项（1-4）: " OPTION
 
     case $OPTION in
     1) install_node ;;
     2) check_service_status ;;
     3) reboot_pingpong ;;
+    4) change_device_id ;;
     *) echo "无效选项。" ;;
     esac
 }
